@@ -9,7 +9,7 @@ BACKUP_DIR="${BACKUP_DIR:-/logs/backup}"
 MAX_WAIT_TIME="${MAX_WAIT_TIME:-300}" # 5 minutes max wait for second file
 
 # Logging function
-log() { 
+log() {
     local level="${1:-INFO}"
     shift
     local msg="[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $*"
@@ -39,24 +39,24 @@ validate_pdf() {
         log "ERROR" "File does not exist: $file"
         return 1
     fi
-    
+
     if [[ ! -r "$file" ]]; then
         log "ERROR" "File is not readable: $file"
         return 1
     fi
-    
+
     # Check if file is actually a PDF
     if ! file "$file" | grep -q "PDF"; then
         log "ERROR" "File is not a valid PDF: $file"
         return 1
     fi
-    
+
     # Test PDF with pdftk
     if ! pdftk "$file" dump_data >/dev/null 2>&1; then
         log "ERROR" "PDF appears corrupted or encrypted: $file"
         return 1
     fi
-    
+
     log "INFO" "PDF validation passed: $file"
     return 0
 }
@@ -66,12 +66,12 @@ COUNT=${#FILES[@]}
 
 log "INFO" "Found $COUNT PDF files in inbox"
 
-if [ "$COUNT" -eq 0 ]; then 
+if [ "$COUNT" -eq 0 ]; then
     log "DEBUG" "No PDF files found, exiting"
     exit 0
 fi
 
-if [ "$COUNT" -eq 1 ]; then 
+if [ "$COUNT" -eq 1 ]; then
     log "INFO" "Only single file found, waiting for second file: ${FILES[0]}"
     exit 0
 fi
@@ -82,12 +82,30 @@ if [ "$COUNT" -gt 2 ]; then
 fi
 
 # Select files to process
-ODD="${FILES[0]}"
-EVEN="${FILES[1]}"
+# Sort files by name to ensure consistent ordering
+FILES=($(printf '%s\n' "${FILES[@]}" | sort))
+
+# Detect which file contains odd vs even pages based on filename patterns
+if [[ "${FILES[0]}" =~ odd && "${FILES[1]}" =~ even ]]; then
+    ODD="${FILES[0]}"
+    EVEN="${FILES[1]}"
+    log "INFO" "Detected by filename pattern - odd: ${FILES[0]}, even: ${FILES[1]}"
+elif [[ "${FILES[0]}" =~ even && "${FILES[1]}" =~ odd ]]; then
+    ODD="${FILES[1]}"
+    EVEN="${FILES[0]}"
+    log "INFO" "Detected by filename pattern - odd: ${FILES[1]}, even: ${FILES[0]}"
+else
+    # If no pattern match, use alphabetical order but log a warning
+    ODD="${FILES[0]}"
+    EVEN="${FILES[1]}"
+    log "WARN" "No filename pattern detected, using alphabetical order"
+    log "WARN" "Assuming: odd=${FILES[0]}, even=${FILES[1]}"
+    log "WARN" "For best results, use filenames containing 'odd' and 'even'"
+fi
 
 log "INFO" "Selected files for processing:"
-log "INFO" "  Odd pages file:  $ODD"
-log "INFO" "  Even pages file: $EVEN"
+log "INFO" "  Odd pages file:   $ODD"
+log "INFO" "  Even pages file:  $EVEN"
 
 # Validate both PDF files
 if ! validate_pdf "$ODD"; then
@@ -120,7 +138,7 @@ cp "$ODD" "$BACKUP_ODD" || {
     exit 1
 }
 cp "$EVEN" "$BACKUP_EVEN" || {
-    log "ERROR" "Failed to create backup of even file" 
+    log "ERROR" "Failed to create backup of even file"
     exit 1
 }
 
@@ -133,13 +151,18 @@ if [ "$AVAILABLE_SPACE" -lt "$REQUIRED_SPACE" ]; then
     exit 1
 fi
 
-log "INFO" "Reversing even pages order"
+log "INFO" "Reversing even pages order (duplex scanning correction)"
+log "DEBUG" "Original even pages file: $EVEN"
 if ! pdftk "$EVEN" cat end-1 output "$TMP_EVEN_REV"; then
     log "ERROR" "Failed to reverse even pages"
     exit 1
 fi
+log "DEBUG" "Reversed even pages file: $TMP_EVEN_REV"
 
-log "INFO" "Merging odd and even pages"
+log "INFO" "Merging odd and even pages in correct order"
+log "DEBUG" "Merge command: pdftk A=\"$ODD\" B=\"$TMP_EVEN_REV\" shuffle A B output \"$MERGED\""
+# For duplex printing: Odd pages are 1,3,5,... Even pages (after reversal) should be 2,4,6,...
+# We want final order: 1,2,3,4,5,6,... so we shuffle A1 B1 A2 B2 A3 B3...
 if ! pdftk A="$ODD" B="$TMP_EVEN_REV" shuffle A B output "$MERGED"; then
     log "ERROR" "Failed to merge PDF files"
     rm -f "$TMP_EVEN_REV"
