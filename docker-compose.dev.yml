@@ -1,0 +1,70 @@
+# Docker Compose for local development and testing
+version: "3.9"
+
+services:
+  duplexer:
+    build: 
+      context: ./docker
+      dockerfile: Dockerfile
+    container_name: duplexer-dev
+    environment:
+      - INBOX=/duplex-inbox
+      - OUTBOX=/paperless-consume
+      - LOGFILE=/logs/duplexer.log
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./test-inbox:/duplex-inbox:rw
+      - ./test-outbox:/paperless-consume:rw
+      - ./test-logs:/logs:rw
+    restart: unless-stopped
+    healthcheck:
+      test: ["/app/health_check.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: Local Paperless-NGX for testing
+  paperless:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    container_name: paperless-dev
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - gotenberg
+      - tika
+    ports:
+      - "8000:8000"
+    volumes:
+      - paperless_data:/usr/src/paperless/data
+      - paperless_media:/usr/src/paperless/media
+      - ./test-outbox:/usr/src/paperless/consume:ro
+    environment:
+      PAPERLESS_REDIS: redis://redis:6379
+      PAPERLESS_TIKA_ENABLED: 1
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://gotenberg:3000
+      PAPERLESS_TIKA_ENDPOINT: http://tika:9998
+      PAPERLESS_OCR_LANGUAGE: eng
+
+  redis:
+    image: docker.io/library/redis:7
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+
+  gotenberg:
+    image: docker.io/gotenberg/gotenberg:7
+    restart: unless-stopped
+    command:
+      - "gotenberg"
+      - "--chromium-disable-javascript=true"
+      - "--chromium-allow-list=file:///tmp/.*"
+
+  tika:
+    image: docker.io/apache/tika:latest
+    restart: unless-stopped
+
+volumes:
+  paperless_data:
+  paperless_media:
+  redisdata:
