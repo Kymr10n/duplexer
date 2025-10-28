@@ -1,5 +1,9 @@
 # Duplexer
 
+<div align="center">
+  <img src="logo.png" alt="Duplexer Logo" width="200"/>
+</div>
+
 **Automatic PDF Duplex Scanning Assistant**
 
 Duplexer is a containerized service that automatically merges dual-sided (duplex) PDF scans that were created by scanning odd and even pages separately. Perfect for home offices and document management workflows.
