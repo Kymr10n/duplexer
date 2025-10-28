@@ -1,7 +1,7 @@
 services:
   duplexer:
-    container_name: duplexer
-    image: duplexer:latest
+    container_name: ${CONTAINER_NAME:-duplexer}
+    image: ${IMAGE_NAME:-duplexer:latest}
     restart: unless-stopped
     environment:
       - INBOX=/duplex-inbox
@@ -10,9 +10,9 @@ services:
       - BACKUP_DIR=/logs/backup
       - LOG_LEVEL=INFO
     volumes:
-      - /volume1/services/duplexer/inbox:/duplex-inbox:rw
-      - /volume1/services/paperless/consume:/paperless-consume:rw
-      - /volume1/services/duplexer/logs:/logs:rw
+      - ${INBOX_PATH:-/volume1/services/duplexer/inbox}:/duplex-inbox:rw
+      - ${CONSUME_PATH:-/volume1/services/paperless/consume}:/paperless-consume:rw
+      - ${LOGS_PATH:-/volume1/services/duplexer/logs}:/logs:rw
     healthcheck:
       test: ["CMD", "/app/health_check.sh"]
       interval: 30s

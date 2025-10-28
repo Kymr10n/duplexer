@@ -1,6 +1,14 @@
-NAS_CTX=***REMOVED***
-IMAGE_NAME=duplexer:latest
-DEV_IMAGE_NAME=duplexer:dev
+# Load environment variables from .env file if it exists
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
+
+# Default values if not set in .env
+NAS_CTX ?= $(DOCKER_CONTEXT)
+IMAGE_NAME ?= duplexer:latest
+DEV_IMAGE_NAME ?= duplexer:dev
+CONTAINER_NAME ?= duplexer
 
 # Production builds and deployment
 build-local:

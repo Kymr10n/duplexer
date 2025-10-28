@@ -1,16 +1,66 @@
 {
   "folders": [
-    { "name": "duplexer", "path": "." },
-    { "name": "container", "path": "docker" },
-    { "name": "deploy", "path": "deploy" }
+    {
+      "name": "🏠 Duplexer",
+      "path": "."
+    },
+    {
+      "name": "🐳 Container",
+      "path": "docker"
+    },
+    {
+      "name": "🚀 Deploy",
+      "path": "deploy"
+    },
+    {
+      "name": "🧪 Tests",
+      "path": "test"
+    },
+    {
+      "name": "📜 Scripts",
+      "path": "scripts"
+    }
   ],
   "settings": {
-    "files.exclude": { "**/.git": true, "**/.DS_Store": true },
+    "files.exclude": {
+      "**/.git": true,
+      "**/.DS_Store": true,
+      "test/*.aux": true,
+      "test/*.log": true,
+      "test/*.out": true,
+      "test/*.tex": false
+    },
     "files.trimTrailingWhitespace": true,
     "editor.insertSpaces": true,
     "editor.tabSize": 2,
-    "editor.rulers": [100],
+    "editor.rulers": [80, 100],
     "editor.formatOnSave": false,
-    "terminal.integrated.defaultProfile.linux": "bash"
+    "terminal.integrated.defaultProfile.linux": "zsh",
+    "terminal.integrated.cwd": "${workspaceFolder}",
+    "makefile.extensionOutputFolder": "./.vscode",
+    "docker.dockerodeOptions": {
+      "context": "***REMOVED***"
+    },
+    "shellcheck.enable": true,
+    "shellcheck.run": "onSave"
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": []
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": []
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-vscode.makefile-tools",
+      "ms-azuretools.vscode-docker",
+      "timonwong.shellcheck",
+      "foxundermoon.shell-format",
+      "ms-vscode.vscode-json",
+      "redhat.vscode-yaml",
+      "ms-vscode-remote.remote-ssh"
+    ]
   }
 }
