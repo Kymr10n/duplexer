@@ -1,0 +1,10 @@
+version: "3.9"
+services:
+  duplexer:
+    container_name: duplexer
+    image: duplexer:latest
+    restart: unless-stopped
+    volumes:
+      - /volume1/services/duplexer:/duplex-inbox:rw
+      - /volume1/services/paperless/consume:/paperless-consume:rw
+      - /volume1/services/duplexer/logs:/logs:rw

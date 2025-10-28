@@ -1,0 +1,16 @@
+{
+  "folders": [
+    { "name": "duplexer", "path": "." },
+    { "name": "container", "path": "docker" },
+    { "name": "deploy", "path": "deploy" }
+  ],
+  "settings": {
+    "files.exclude": { "**/.git": true, "**/.DS_Store": true },
+    "files.trimTrailingWhitespace": true,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2,
+    "editor.rulers": [100],
+    "editor.formatOnSave": false,
+    "terminal.integrated.defaultProfile.linux": "bash"
+  }
+}
