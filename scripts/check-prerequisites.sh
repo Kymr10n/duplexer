@@ -138,6 +138,15 @@ echo ""
 echo "Docker & Container Tools:"
 check_local "docker" "Docker CLI"
 
+# Check Docker Compose
+LOCAL_TOTAL=$((LOCAL_TOTAL + 1))
+if docker compose version >/dev/null 2>&1; then
+    echo -e "✅ ${GREEN}Docker Compose plugin${NC}"
+    LOCAL_PASSED=$((LOCAL_PASSED + 1))
+else
+    echo -e "❌ ${RED}Docker Compose plugin${NC}"
+fi
+
 # Check Docker context
 LOCAL_TOTAL=$((LOCAL_TOTAL + 1))
 if docker context ls 2>/dev/null | grep -q "$DOCKER_CTX"; then
@@ -150,7 +159,7 @@ fi
 echo ""
 echo "PDF Processing Tools (for testing):"
 check_local "ps2pdf" "Ghostscript (ps2pdf)" false
-check_local "pdflatex" "LaTeX (pdflatex)" false
+check_local "pdflatex" "LaTeX (pdflatex)" true
 
 echo ""
 echo "Project Files:"

@@ -25,9 +25,12 @@ volumes/
 .DS_Store
 Thumbs.db
 
+# Test-generated files
+test/pdfs/
+test_*.pdf
+*.pdf
+test_report.*
+
 # Temporary files
 *.tmp
 *.temp
-
-# PDF test files (optional - remove if you want to commit test PDFs)
-*.pdf
