@@ -2,6 +2,8 @@
 .env
 .env.local
 .env.*.local
+deploy/.env
+deploy/.env.*
 
 # Logs
 logs/
@@ -29,7 +31,7 @@ Thumbs.db
 test/pdfs/
 test_*.pdf
 *.pdf
-test_report.*
+test_report*
 
 # Temporary files
 *.tmp

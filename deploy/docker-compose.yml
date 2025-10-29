@@ -3,8 +3,6 @@ services:
     container_name: ${CONTAINER_NAME:-duplexer}
     image: ${IMAGE_NAME:-duplexer:latest}
     restart: unless-stopped
-    env_file:
-      - .env.production
     environment:
       - INBOX=/duplex-inbox
       - OUTBOX=/paperless-consume
@@ -16,9 +14,9 @@ services:
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_USER=${SMTP_USER}
-      - SMTP_PASSWORD_BASE64=${SMTP_PASSWORD_BASE64}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
       - SMTP_FROM=${SMTP_FROM}
-      - WEBHOOK_EXTERNAL_URL=${WEBHOOK_EXTERNAL_URL:-https://duplexer.endpoint.servebeer.com}
+      - WEBHOOK_EXTERNAL_URL=${WEBHOOK_EXTERNAL_URL}
       - WEBHOOK_PORT=8083
     ports:
       - "8083:8083"  # Internal webhook port for nginx proxy

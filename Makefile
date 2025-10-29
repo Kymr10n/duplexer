@@ -17,17 +17,21 @@ build-local:
 build-remote: check-prereqs
 	docker --context $(NAS_CTX) build -t $(IMAGE_NAME) ./docker
 
-up: check-prereqs
-	docker --context $(NAS_CTX) compose -f ./deploy/docker-compose.yml up -d
+up: check-prereqs prepare-deploy
+	cd deploy && unset SMTP_PASSWORD && docker --context $(NAS_CTX) compose -f docker-compose.yml up -d
+
+prepare-deploy:
+	@echo "🔧 Preparing deployment environment..."
+	./scripts/prepare-deploy-env.sh
 
 down:
-	docker --context $(NAS_CTX) compose -f ./deploy/docker-compose.yml down
+	cd deploy && docker --context $(NAS_CTX) compose -f docker-compose.yml down
 
 logs:
 	docker --context $(NAS_CTX) logs -f duplexer
 
 restart:
-	docker --context $(NAS_CTX) compose -f ./deploy/docker-compose.yml restart
+	cd deploy && docker --context $(NAS_CTX) compose -f docker-compose.yml restart
 
 # Development commands
 dev-setup:
