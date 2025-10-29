@@ -7,15 +7,13 @@ set -euo pipefail
 SMTP_HOST="${SMTP_HOST:-}"
 SMTP_PORT="${SMTP_PORT:-587}"
 SMTP_USER="${SMTP_USER:-}"
-SMTP_PASSWORD_BASE64="${SMTP_PASSWORD_BASE64:-}"
+SMTP_PASSWORD="${SMTP_PASSWORD:-}"
 SMTP_FROM="${SMTP_FROM:-}"
 APPROVAL_EMAIL="${APPROVAL_EMAIL:-}"
 
-# Decode base64 password
-if [[ -n "$SMTP_PASSWORD_BASE64" ]]; then
-    SMTP_PASSWORD=$(echo "$SMTP_PASSWORD_BASE64" | base64 -d)
-else
-    SMTP_PASSWORD="${SMTP_PASSWORD:-}"
+# Decode password from base64 (always encoded during deployment)
+if [[ -n "$SMTP_PASSWORD" ]]; then
+    SMTP_PASSWORD=$(echo "$SMTP_PASSWORD" | base64 -d)
 fi
 
 # Function to check if email is configured
