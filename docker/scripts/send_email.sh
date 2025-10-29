@@ -183,7 +183,7 @@ send_approval_email() {
 
         <div class="content">
             <p>Hello! Your PDF documents have been automatically merged and are ready for review.</p>
-            
+
             <div class="details">
                 <h3>📋 Merge Details</h3>
                 <ul>
@@ -200,7 +200,7 @@ send_approval_email() {
                 <a href="${approve_url}" class="btn btn-approve">
                     ✅ APPROVE DOCUMENT
                 </a>
-                
+
                 <a href="${reject_url}" class="btn btn-reject">
                     ❌ REJECT DOCUMENT
                 </a>
