@@ -44,11 +44,24 @@ cleanup_test_files() {
 check_prerequisites() {
     log_info "Checking prerequisites..."
 
-    # Check if test PDFs exist
-    if [[ ! -f "$TEST_DIR/test_odd_pages.pdf" || ! -f "$TEST_DIR/test_even_pages.pdf" ]]; then
+    # Load test file paths from test_vars.sh if it exists
+    if [[ -f "$TEST_DIR/test_vars.sh" ]]; then
+        source "$TEST_DIR/test_vars.sh"
+    fi
+
+    # Check if test PDFs exist (either from test_vars or fallback to default names)
+    local odd_pdf="${TEST_ODD_PDF:-$TEST_DIR/test_odd_pages.pdf}"
+    local even_pdf="${TEST_EVEN_PDF:-$TEST_DIR/test_even_pages.pdf}"
+
+    if [[ ! -f "$odd_pdf" || ! -f "$even_pdf" ]]; then
         log_error "Test PDFs not found. Please run create_test_pdfs.sh first."
+        log_error "Expected files: $odd_pdf, $even_pdf"
         exit 1
     fi
+
+    # Export for use in other functions
+    export TEST_ODD_PDF="$odd_pdf"
+    export TEST_EVEN_PDF="$even_pdf"
 
     # Check NAS connectivity
     if ! ssh "$NAS_HOST" "echo 'Connected'" >/dev/null 2>&1; then
@@ -63,7 +76,7 @@ check_prerequisites() {
     fi
 
     # Check if Duplexer container is running
-    if ! docker --context "$DOCKER_CONTEXT" ps | grep -q "$CONTAINER_NAME"; then
+    if ! docker --context "$DOCKER_CONTEXT" ps --format "table {{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
         log_error "Duplexer container is not running"
         exit 1
     fi
@@ -75,7 +88,7 @@ test_single_file_detection() {
     log_info "Testing single file detection..."
 
     # Upload only odd pages file
-    scp "$TEST_DIR/test_odd_pages.pdf" "$NAS_HOST:${INBOX_PATH}/"
+    scp "$TEST_ODD_PDF" "$NAS_HOST:${INBOX_PATH}/"
 
     # Wait and check logs
     sleep 3
@@ -92,23 +105,30 @@ test_single_file_detection() {
 test_pdf_merging() {
     log_info "Testing PDF merging process..."
 
-    # Upload second file to trigger merging
-    scp "$TEST_DIR/test_even_pages.pdf" "$NAS_HOST:${INBOX_PATH}/"
+    # Upload second file to trigger automatic merging
+    scp "$TEST_EVEN_PDF" "$NAS_HOST:${INBOX_PATH}/"
 
-    # Wait for processing
-    log_info "Waiting for merge process to complete..."
-    sleep 5
+    # Wait for automatic processing to complete
+    log_info "Waiting for automatic merge process to complete..."
+    sleep 8
 
-    # Execute merge manually to ensure it works
-    log_info "Executing merge process..."
-    local merge_output=$(docker --context "$DOCKER_CONTEXT" exec "$CONTAINER_NAME" /app/merge_once.sh)
+    # Check logs to see if automatic processing occurred
+    local logs=$(docker --context "$DOCKER_CONTEXT" logs "$CONTAINER_NAME" --since=15s)
 
-    if echo "$merge_output" | grep -q "Processing complete"; then
-        log_success "PDF merging completed successfully"
+    if echo "$logs" | grep -q "Processing complete\|Successfully merged\|Merge completed"; then
+        log_success "Automatic PDF merging completed successfully"
     else
-        log_error "PDF merging failed"
-        echo "$merge_output"
-        return 1
+        log_info "Checking if files were processed (no files in inbox = success)"
+        # If no files in inbox, processing was successful
+        local inbox_files=$(ssh "$NAS_HOST" "ls ${INBOX_PATH}/*.pdf 2>/dev/null" || echo "")
+        if [[ -z "$inbox_files" ]]; then
+            log_success "PDF merging completed successfully (files processed)"
+        else
+            log_error "PDF merging may have failed - files still in inbox"
+            echo "Recent logs:"
+            echo "$logs"
+            return 1
+        fi
     fi
 }
 

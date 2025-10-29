@@ -7,9 +7,16 @@ set -euo pipefail
 SMTP_HOST="${SMTP_HOST:-}"
 SMTP_PORT="${SMTP_PORT:-587}"
 SMTP_USER="${SMTP_USER:-}"
-SMTP_PASSWORD="${SMTP_PASSWORD:-}"
+SMTP_PASSWORD_BASE64="${SMTP_PASSWORD_BASE64:-}"
 SMTP_FROM="${SMTP_FROM:-}"
 APPROVAL_EMAIL="${APPROVAL_EMAIL:-}"
+
+# Decode base64 password
+if [[ -n "$SMTP_PASSWORD_BASE64" ]]; then
+    SMTP_PASSWORD=$(echo "$SMTP_PASSWORD_BASE64" | base64 -d)
+else
+    SMTP_PASSWORD="${SMTP_PASSWORD:-}"
+fi
 
 # Function to check if email is configured
 is_email_configured() {
@@ -274,7 +281,7 @@ import os
 smtp_host = "${SMTP_HOST}"
 smtp_port = int("${SMTP_PORT}")
 smtp_user = "${SMTP_USER}"
-smtp_password = "${SMTP_PASSWORD}"
+smtp_password = """${SMTP_PASSWORD}"""
 from_email = "${SMTP_FROM}"
 to_email = "${APPROVAL_EMAIL}"
 
@@ -303,13 +310,17 @@ try:
     # Try SMTP with TLS
     if smtp_port == 587:
         server = smtplib.SMTP(smtp_host, smtp_port)
+        server.set_debuglevel(1)  # Enable debug output
         server.starttls(context=context)
     # Try SMTP with SSL
     elif smtp_port == 465:
         server = smtplib.SMTP_SSL(smtp_host, smtp_port, context=context)
+        server.set_debuglevel(1)  # Enable debug output
     else:
         server = smtplib.SMTP(smtp_host, smtp_port)
+        server.set_debuglevel(1)  # Enable debug output
 
+    print(f"Attempting login with user: {smtp_user}")
     server.login(smtp_user, smtp_password)
     server.send_message(msg)
     server.quit()
@@ -370,7 +381,7 @@ from email.mime.text import MIMEText
 smtp_host = "${SMTP_HOST}"
 smtp_port = int("${SMTP_PORT}")
 smtp_user = "${SMTP_USER}"
-smtp_password = "${SMTP_PASSWORD}"
+smtp_password = """${SMTP_PASSWORD}"""
 from_email = "${SMTP_FROM}"
 to_email = "${APPROVAL_EMAIL}"
 

@@ -53,14 +53,14 @@ check-prereqs:
 	./scripts/check-prerequisites.sh
 
 # Testing
-test:
+test-e2e:
 	./test/run_e2e_test.sh
 
 test-pdfs:
 	./test/create_test_pdfs.sh
 
-# Testing and validation
-test:
+# Script validation
+test-syntax:
 	@echo "Running shellcheck on scripts..."
 	find docker/scripts -name "*.sh" -exec shellcheck {} +
 	@echo "Testing script syntax..."
@@ -68,6 +68,9 @@ test:
 	bash -n docker/scripts/merge_once.sh
 	bash -n docker/scripts/health_check.sh
 	bash -n docker/scripts/logrotate.sh
+
+# Run all tests
+test: test-syntax test-e2e
 
 clean:
 	docker system prune -f
@@ -84,4 +87,4 @@ status:
 	docker --context $(NAS_CTX) ps | grep duplexer
 	docker --context $(NAS_CTX) exec duplexer /app/health_check.sh
 
-.PHONY: build-local build-remote up down logs restart dev-setup dev-build dev-up dev-down dev-logs dev-shell test clean health backup-logs status
+.PHONY: build-local build-remote up down logs restart dev-setup dev-build dev-up dev-down dev-logs dev-shell test test-e2e test-syntax test-pdfs clean health backup-logs status

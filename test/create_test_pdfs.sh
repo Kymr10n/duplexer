@@ -52,19 +52,22 @@ EOF
 
     # Compile LaTeX to PDF
     echo "  📄 Compiling $(basename "$filename")..."
+    local current_dir=$(pwd)
     cd /tmp
     pdflatex -interaction=nonstopmode "${basename_file}.tex" >/dev/null 2>&1
 
     if [[ -f "/tmp/${basename_file}.pdf" ]]; then
-        mv "/tmp/${basename_file}.pdf" "$filename"
+        mv "/tmp/${basename_file}.pdf" "$current_dir/$filename"
         echo "  ✅ Created: $(basename "$filename")"
     else
         echo "  ❌ Failed to create: $(basename "$filename")"
+        cd "$current_dir"
         return 1
     fi
 
     # Clean up LaTeX auxiliary files
     rm -f "/tmp/${basename_file}."*
+    cd "$current_dir"
 }
 
 # Generate test PDFs
