@@ -60,7 +60,7 @@ test:
 	./test/run_e2e_test.sh
 
 test-pdfs:
-	./test/generate_test_pdfs.sh
+	./test/create_test_pdfs.sh
 
 # Testing and validation
 test:
