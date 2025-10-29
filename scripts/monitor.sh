@@ -13,7 +13,7 @@ if [[ -f "$WORKSPACE_DIR/.env" ]]; then
 fi
 
 # Set defaults
-NAS_HOST="${NAS_HOST:-ugadmin@***REMOVED***}"
+NAS_HOST="${NAS_HOST:-username@your-nas-hostname}"
 INBOX_PATH="${INBOX_PATH:-/volume1/services/duplexer/inbox}"
 LOGS_PATH="${LOGS_PATH:-/volume1/services/duplexer/logs}"
 

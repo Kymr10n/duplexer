@@ -79,8 +79,8 @@ make status
 make health
 
 # Debug
-docker --context ***REMOVED*** logs duplexer
-ssh ugadmin@***REMOVED*** "ls /volume1/services/duplexer/inbox/"
+docker --context your-nas-context logs duplexer
+ssh username@your-nas-hostname "ls /volume1/services/duplexer/inbox/"
 ```
 
 ## 🎯 Common Workflows
@@ -111,10 +111,10 @@ make down
 make restart
 
 # Check what's running
-docker --context ***REMOVED*** ps
+docker --context your-nas-context ps
 
 # Access NAS directly
-ssh ugadmin@***REMOVED***
+ssh username@your-nas-hostname
 ```
 
 ---

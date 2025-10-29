@@ -39,7 +39,7 @@
     "terminal.integrated.cwd": "${workspaceFolder}",
     "makefile.extensionOutputFolder": "./.vscode",
     "docker.dockerodeOptions": {
-      "context": "***REMOVED***"
+      "context": "your-nas-context"
     },
     "shellcheck.enable": true,
     "shellcheck.run": "onSave"

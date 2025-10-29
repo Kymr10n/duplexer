@@ -98,8 +98,8 @@ Duplexer uses a `.env` file for configuration (not synced with git):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NAS_HOST` | `ugadmin@***REMOVED***` | SSH connection to NAS |
-| `DOCKER_CONTEXT` | `***REMOVED***` | Docker context name |
+| `NAS_HOST` | `username@your-nas-hostname` | SSH connection to NAS |
+| `DOCKER_CONTEXT` | `your-nas-context` | Docker context name |
 | `NAS_DUPLEXER_PATH` | `/volume1/services/duplexer` | Base path on NAS |
 | `NAS_PAPERLESS_PATH` | `/volume1/services/paperless` | Paperless path on NAS |
 | `INBOX_PATH` | `${NAS_DUPLEXER_PATH}/inbox` | Directory to monitor for PDFs |

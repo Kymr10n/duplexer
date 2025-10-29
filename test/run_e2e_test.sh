@@ -15,10 +15,10 @@ fi
 
 # Configuration with defaults
 TEST_DIR="${SCRIPT_DIR}/pdfs"
-NAS_HOST="${NAS_HOST:-ugadmin@***REMOVED***}"
+NAS_HOST="${NAS_HOST:-username@your-nas-hostname}"
 INBOX_PATH="${INBOX_PATH:-/volume1/services/duplexer/inbox}"
 CONSUME_PATH="${CONSUME_PATH:-/volume1/services/paperless/consume}"
-DOCKER_CONTEXT="${DOCKER_CONTEXT:-***REMOVED***}"
+DOCKER_CONTEXT="${DOCKER_CONTEXT:-your-nas-context}"
 CONTAINER_NAME="${CONTAINER_NAME:-duplexer}"
 
 # Colors for output
