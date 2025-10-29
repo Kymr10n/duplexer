@@ -15,7 +15,7 @@ PROCESS_DELAY="${PROCESS_DELAY:-2}"
 HEALTH_CHECK_INTERVAL="${HEALTH_CHECK_INTERVAL:-60}"
 
 # Logging function
-log() { 
+log() {
     local level="${1:-INFO}"
     shift
     local msg="[$(date '+%Y-%m-%d %H:%M:%S')] [$level] [watch] $*"
@@ -25,24 +25,24 @@ log() {
 # Health check function
 health_check() {
     log "DEBUG" "Health check - monitoring $INBOX for $FILE_PATTERN"
-    
+
     # Check if directories exist and are accessible
     if [[ ! -d "$INBOX" ]]; then
         log "ERROR" "Inbox directory does not exist: $INBOX"
         return 1
     fi
-    
+
     if [[ ! -r "$INBOX" ]]; then
         log "ERROR" "Inbox directory is not readable: $INBOX"
         return 1
     fi
-    
+
     # Check disk space
     local available_space=$(df "$INBOX" | tail -1 | awk '{print $4}')
     if [[ "$available_space" -lt 10240 ]]; then  # Less than 10MB
         log "WARN" "Low disk space in inbox: ${available_space}KB available"
     fi
-    
+
     return 0
 }
 
@@ -50,7 +50,7 @@ health_check() {
 log "INFO" "Duplexer watcher starting up"
 log "INFO" "Configuration:"
 log "INFO" "  Inbox: $INBOX"
-log "INFO" "  Pattern: $FILE_PATTERN" 
+log "INFO" "  Pattern: $FILE_PATTERN"
 log "INFO" "  Process delay: ${PROCESS_DELAY}s"
 log "INFO" "  Health check interval: ${HEALTH_CHECK_INTERVAL}s"
 
@@ -62,6 +62,38 @@ fi
 
 log "INFO" "Duplexer watcher started successfully"
 
+# Start approval checker daemon if email is configured
+if [[ -n "${APPROVAL_EMAIL:-}" ]] && [[ -f "/app/check_approval.sh" ]]; then
+    log "INFO" "Starting email approval checker daemon"
+    /app/check_approval.sh daemon &
+    APPROVAL_PID=$!
+    log "INFO" "Approval checker started with PID: $APPROVAL_PID"
+
+    # Start webhook server
+    if [[ -f "/app/webhook_server.py" ]]; then
+        log "INFO" "Starting webhook server"
+        python3 /app/webhook_server.py &
+        WEBHOOK_PID=$!
+        log "INFO" "Webhook server started with PID: $WEBHOOK_PID"
+    fi
+fi
+
+# Set up signal handlers for graceful shutdown
+cleanup() {
+    log "INFO" "Shutting down duplexer watcher"
+    if [[ -n "${APPROVAL_PID:-}" ]]; then
+        log "INFO" "Stopping approval checker (PID: $APPROVAL_PID)"
+        kill "$APPROVAL_PID" 2>/dev/null || true
+    fi
+    if [[ -n "${WEBHOOK_PID:-}" ]]; then
+        log "INFO" "Stopping webhook server (PID: $WEBHOOK_PID)"
+        kill "$WEBHOOK_PID" 2>/dev/null || true
+    fi
+    exit 0
+}
+
+trap cleanup SIGTERM SIGINT
+
 # Set up periodic health checks
 last_health_check=0
 
@@ -72,14 +104,14 @@ while true; do
         health_check || log "WARN" "Health check failed"
         last_health_check=$current_time
     fi
-    
+
     # Wait for file system events
     if inotifywait -e close_write,move,create "$INBOX" >/dev/null 2>&1; then
         log "INFO" "File system event detected"
-        
+
         # Small delay to ensure file write is complete
         sleep "$PROCESS_DELAY"
-        
+
         # Trigger processing
         log "INFO" "Triggering merge process"
         if /app/merge_once.sh; then

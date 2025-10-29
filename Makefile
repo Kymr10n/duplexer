@@ -14,10 +14,10 @@ CONTAINER_NAME ?= duplexer
 build-local:
 	docker build -t $(IMAGE_NAME) ./docker
 
-build-remote:
+build-remote: check-prereqs
 	docker --context $(NAS_CTX) build -t $(IMAGE_NAME) ./docker
 
-up:
+up: check-prereqs
 	docker --context $(NAS_CTX) compose -f ./deploy/docker-compose.yml up -d
 
 down:
@@ -47,6 +47,20 @@ dev-logs:
 
 dev-shell:
 	docker exec -it duplexer-dev bash
+
+# Prerequisites and validation
+check-prereqs:
+	./scripts/check-prerequisites.sh
+
+validate-env:
+	./scripts/validate-env.sh
+
+# Testing
+test:
+	./test/run_e2e_test.sh
+
+test-pdfs:
+	./test/generate_test_pdfs.sh
 
 # Testing and validation
 test:

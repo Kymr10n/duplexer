@@ -176,14 +176,69 @@ if ! validate_pdf "$MERGED"; then
     exit 1
 fi
 
-log "INFO" "Moving merged file to output directory"
-if ! mv "$MERGED" "$FINAL_OUT"; then
-    log "ERROR" "Failed to move merged file to output directory"
-    rm -f "$TMP_EVEN_REV" "$MERGED"
-    exit 1
+# Source email functions
+if [[ -f "/app/send_email.sh" ]]; then
+    source /app/send_email.sh
 fi
 
-log "INFO" "Merged file delivered successfully: $FINAL_OUT"
+# Check if email approval is enabled
+if [[ -n "${APPROVAL_EMAIL:-}" ]] && command -v python3 >/dev/null && is_email_configured 2>/dev/null; then
+    log "INFO" "Email approval enabled - holding merged file for approval"
+
+    # Create pending directory
+    PENDING_DIR="/logs/pending"
+    mkdir -p "$PENDING_DIR"
+
+    # Generate unique token for this merge
+    MERGE_TOKEN="merge_${TS}_$(date +%s | tail -c 6)"
+
+    # Move merged file to pending location instead of final output
+    PENDING_PDF="$PENDING_DIR/$(basename "$FINAL_OUT")"
+    if ! mv "$MERGED" "$PENDING_PDF"; then
+        log "ERROR" "Failed to move merged file to pending directory"
+        rm -f "$TMP_EVEN_REV" "$MERGED"
+        exit 1
+    fi
+
+    # Create pending file with metadata
+    cat > "$PENDING_DIR/${MERGE_TOKEN}.pending" << EOF
+MERGE_TOKEN=$MERGE_TOKEN
+TIMESTAMP=$TS
+MERGED_PDF=$PENDING_PDF
+ORIGINAL_ODD=$BACKUP_ODD
+ORIGINAL_EVEN=$BACKUP_EVEN
+FINAL_OUTPUT=$FINAL_OUT
+CREATED=$(date '+%Y-%m-%d %H:%M:%S')
+EOF
+
+    log "INFO" "Sending approval email with merged PDF attached"
+    if send_approval_email "$PENDING_PDF" "$BACKUP_ODD" "$BACKUP_EVEN" "$MERGE_TOKEN" "$TS"; then
+        log "INFO" "Approval email sent successfully for token: $MERGE_TOKEN"
+        log "INFO" "Merged file awaiting approval: $PENDING_PDF"
+        log "INFO" "To manually approve: touch $PENDING_DIR/APPROVE_$MERGE_TOKEN"
+        log "INFO" "To manually reject: touch $PENDING_DIR/REJECT_$MERGE_TOKEN"
+    else
+        log "ERROR" "Failed to send approval email - proceeding without approval"
+        # Fallback: move to final output if email fails
+        if ! mv "$PENDING_PDF" "$FINAL_OUT"; then
+            log "ERROR" "Failed to move file to final output after email failure"
+            exit 1
+        fi
+        log "INFO" "Merged file delivered without approval: $FINAL_OUT"
+    fi
+
+else
+    log "INFO" "Email approval disabled - delivering merged file directly"
+
+    # Original behavior: move directly to output
+    if ! mv "$MERGED" "$FINAL_OUT"; then
+        log "ERROR" "Failed to move merged file to output directory"
+        rm -f "$TMP_EVEN_REV" "$MERGED"
+        exit 1
+    fi
+
+    log "INFO" "Merged file delivered successfully: $FINAL_OUT"
+fi
 
 # Clean up temporary files
 rm -f "$TMP_EVEN_REV"

@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     coreutils \
     file \
     procps \
+    python3 \
+    python3-pip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /tmp/* \
@@ -28,6 +30,9 @@ COPY scripts/merge_once.sh /app/merge_once.sh
 COPY scripts/watch.sh /app/watch.sh
 COPY scripts/health_check.sh /app/health_check.sh
 COPY scripts/logrotate.sh /app/logrotate.sh
+COPY scripts/send_email.sh /app/send_email.sh
+COPY scripts/check_approval.sh /app/check_approval.sh
+COPY scripts/webhook_server.py /app/webhook_server.py
 COPY config/duplexer.conf /app/config/duplexer.conf
 
 # Set permissions

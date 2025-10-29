@@ -9,6 +9,17 @@ services:
       - LOGFILE=/logs/duplexer.log
       - BACKUP_DIR=/logs/backup
       - LOG_LEVEL=INFO
+      # Email Approval Configuration (Steriods Feature)
+      - APPROVAL_EMAIL=${APPROVAL_EMAIL}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_FROM=${SMTP_FROM}
+      - WEBHOOK_EXTERNAL_URL=${WEBHOOK_EXTERNAL_URL:-https://duplexer.endpoint.servebeer.com}
+      - WEBHOOK_PORT=8083
+    ports:
+      - "8083:8083"  # Internal webhook port for nginx proxy
     volumes:
       - ${INBOX_PATH:-/volume1/services/duplexer/inbox}:/duplex-inbox:rw
       - ${CONSUME_PATH:-/volume1/services/paperless/consume}:/paperless-consume:rw
@@ -20,8 +31,8 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      - duplexer-net
+      - npm_default
 
 networks:
-  duplexer-net:
-    driver: bridge
+  npm_default:
+    external: true
