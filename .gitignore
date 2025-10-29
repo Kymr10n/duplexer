@@ -36,3 +36,8 @@ test_report*
 # Temporary files
 *.tmp
 *.temp
+
+# BFG Repo Cleaner files
+bfg.jar
+bfg-*.jar
+.bfg-report/
