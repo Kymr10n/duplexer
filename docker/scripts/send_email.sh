@@ -35,32 +35,229 @@ send_approval_email() {
     local reject_url="${external_webhook}/reject?token=${merge_token}"
     local status_url="${external_webhook}/status?token=${merge_token}"
 
-    # Create email body
-    local email_body=$(cat << EOF
-Duplexer has successfully merged your PDF documents.
+    # Create beautiful HTML email body
+    local email_html=$(cat << EOF
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duplexer - Document Review Required</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #2c3e50;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 28px;
+        }
+        .header p {
+            color: #7f8c8d;
+            margin: 10px 0 0 0;
+            font-size: 16px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .details {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #3498db;
+        }
+        .details h3 {
+            color: #2c3e50;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .details ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .details li {
+            margin-bottom: 8px;
+            color: #555;
+        }
+        .action-buttons {
+            text-align: center;
+            margin: 40px 0;
+        }
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 0 10px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-approve {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+        }
+        .btn-approve:hover {
+            background: linear-gradient(135deg, #229954, #27ae60);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+        .btn-reject {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+        .btn-reject:hover {
+            background: linear-gradient(135deg, #c0392b, #a93226);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+        .btn-status {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            font-size: 14px;
+            padding: 10px 20px;
+        }
+        .btn-status:hover {
+            background: linear-gradient(135deg, #2980b9, #1f618d);
+            transform: translateY(-1px);
+        }
+        .footer {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .token-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .token-info strong {
+            color: #856404;
+        }
+        .warning {
+            background: #fdf2e9;
+            border-left: 4px solid #e67e22;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        .warning p {
+            margin: 0;
+            color: #d35400;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 Document Review Required</h1>
+            <p>Duplexer has successfully merged your PDF documents</p>
+        </div>
 
-Merge Details:
-- Timestamp: ${timestamp}
-- Original odd pages: $(basename "$original_odd")
-- Original even pages: $(basename "$original_even")
-- Merged document: $(basename "$merged_pdf")
+        <div class="content">
+            <p>Hello! Your PDF documents have been automatically merged and are ready for review.</p>
+            
+            <div class="details">
+                <h3>📋 Merge Details</h3>
+                <ul>
+                    <li><strong>Timestamp:</strong> ${timestamp}</li>
+                    <li><strong>Original odd pages:</strong> $(basename "$original_odd")</li>
+                    <li><strong>Original even pages:</strong> $(basename "$original_even")</li>
+                    <li><strong>Merged document:</strong> $(basename "$merged_pdf")</li>
+                </ul>
+            </div>
 
-Please review the attached merged PDF and click one of the links below:
+            <p>Please review the attached merged PDF document and choose one of the following actions:</p>
 
-✅ APPROVE: ${approve_url}
-❌ REJECT:  ${reject_url}
+            <div class="action-buttons">
+                <a href="${approve_url}" class="btn btn-approve">
+                    ✅ APPROVE DOCUMENT
+                </a>
+                
+                <a href="${reject_url}" class="btn btn-reject">
+                    ❌ REJECT DOCUMENT
+                </a>
+            </div>
 
-📊 Check Status: ${status_url}
+            <div style="text-align: center; margin: 20px 0;">
+                <a href="${status_url}" class="btn btn-status">
+                    📊 Check Status
+                </a>
+            </div>
 
-If approved, the document will be delivered to your paperless system.
-If rejected, it will be moved to the rejected folder for review.
+            <div class="warning">
+                <p><strong>⏰ Important:</strong> If approved, the document will be delivered to your paperless system. If rejected, it will be moved to the rejected folder for review. This request will expire in 24 hours if no response is received.</p>
+            </div>
 
-This request will expire in 24 hours if no response is received.
+            <div class="token-info">
+                <strong>🔑 Reference Token:</strong> ${merge_token}
+            </div>
+        </div>
 
-Token: ${merge_token}
+        <div class="footer">
+            <p>🤖 This is an automated message from the Duplexer Automation System</p>
+            <p>📧 Please do not reply to this email</p>
+        </div>
+    </div>
+</body>
+</html>
+EOF
+)
+
+    # Create plain text fallback
+    local email_text=$(cat << EOF
+📄 DUPLEXER - DOCUMENT REVIEW REQUIRED
+
+Hello! Your PDF documents have been automatically merged and are ready for review.
+
+📋 MERGE DETAILS:
+• Timestamp: ${timestamp}
+• Original odd pages: $(basename "$original_odd")
+• Original even pages: $(basename "$original_even")
+• Merged document: $(basename "$merged_pdf")
+
+Please review the attached merged PDF document and click one of the following links:
+
+✅ APPROVE DOCUMENT: ${approve_url}
+
+❌ REJECT DOCUMENT: ${reject_url}
+
+📊 CHECK STATUS: ${status_url}
+
+⏰ IMPORTANT: If approved, the document will be delivered to your paperless system. If rejected, it will be moved to the rejected folder for review. This request will expire in 24 hours if no response is received.
+
+🔑 Reference Token: ${merge_token}
 
 --
-Duplexer Automation System
+🤖 This is an automated message from the Duplexer Automation System
+📧 Please do not reply to this email
 EOF
 )
 
@@ -87,8 +284,8 @@ msg['From'] = from_email
 msg['To'] = to_email
 msg['Subject'] = "${subject}"
 
-# Add body
-msg.attach(MIMEText("""${email_body}""", 'plain'))
+# Add HTML body (most email clients support this)
+msg.attach(MIMEText("""${email_html}""", 'html', 'utf-8'))
 
 # Add PDF attachment
 try:
