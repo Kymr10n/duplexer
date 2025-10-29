@@ -31,7 +31,7 @@ restart:
 
 # Development commands
 dev-setup:
-	./setup-dev.sh
+	@echo "Development setup no longer needed - use make dev-build && make dev-up"
 
 dev-build:
 	docker build -t $(DEV_IMAGE_NAME) ./docker
@@ -51,9 +51,6 @@ dev-shell:
 # Prerequisites and validation
 check-prereqs:
 	./scripts/check-prerequisites.sh
-
-validate-env:
-	./scripts/validate-env.sh
 
 # Testing
 test:
