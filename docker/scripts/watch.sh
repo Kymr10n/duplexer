@@ -1,94 +1,61 @@
 #!/bin/bash
 set -euo pipefail
 
-# Load configuration
-CONFIG_FILE="/app/config/duplexer.conf"
-if [[ -f "$CONFIG_FILE" ]]; then
-    source "$CONFIG_FILE"
-fi
-
-# Set defaults if not configured
+# --- Config (env overrides supported) ---
 INBOX="${INBOX:-/duplex-inbox}"
 LOGFILE="${LOGFILE:-/logs/duplexer.log}"
-FILE_PATTERN="${FILE_PATTERN:-*.pdf}"
-PROCESS_DELAY="${PROCESS_DELAY:-2}"
-HEALTH_CHECK_INTERVAL="${HEALTH_CHECK_INTERVAL:-60}"
+HEARTBEAT_INTERVAL="${HEARTBEAT_INTERVAL:-300}"  # seconds, default 5 min
+INOTIFY_TIMEOUT="${INOTIFY_TIMEOUT:-60}"         # wake up every 60s even if no events
 
-# Logging function
-log() { 
-    local level="${1:-INFO}"
-    shift
-    local msg="[$(date '+%Y-%m-%d %H:%M:%S')] [$level] [watch] $*"
-    echo "$msg" | tee -a "$LOGFILE"
+# --- Setup ---
+mkdir -p "$(dirname "$LOGFILE")"
+touch "$LOGFILE"
+
+log() {
+  # log to stdout and to file
+  local ts msg
+  ts="$(date '+%F %T')"
+  msg="[$ts] $*"
+  echo "$msg" | tee -a "$LOGFILE" >/dev/null
 }
 
-# Health check function
-health_check() {
-    log "DEBUG" "Health check - monitoring $INBOX for $FILE_PATTERN"
-    
-    # Check if directories exist and are accessible
-    if [[ ! -d "$INBOX" ]]; then
-        log "ERROR" "Inbox directory does not exist: $INBOX"
-        return 1
-    fi
-    
-    if [[ ! -r "$INBOX" ]]; then
-        log "ERROR" "Inbox directory is not readable: $INBOX"
-        return 1
-    fi
-    
-    # Check disk space
-    local available_space=$(df "$INBOX" | tail -1 | awk '{print $4}')
-    if [[ "$available_space" -lt 10240 ]]; then  # Less than 10MB
-        log "WARN" "Low disk space in inbox: ${available_space}KB available"
-    fi
-    
-    return 0
-}
-
-# Startup
-log "INFO" "Duplexer watcher starting up"
-log "INFO" "Configuration:"
-log "INFO" "  Inbox: $INBOX"
-log "INFO" "  Pattern: $FILE_PATTERN" 
-log "INFO" "  Process delay: ${PROCESS_DELAY}s"
-log "INFO" "  Health check interval: ${HEALTH_CHECK_INTERVAL}s"
-
-# Initial health check
-if ! health_check; then
-    log "ERROR" "Initial health check failed, exiting"
-    exit 1
+# Make sure inotifywait is available (healthcheck also checks this, but fail early here)
+if ! command -v inotifywait >/dev/null 2>&1; then
+  log "[watch] ERROR: inotifywait not found in container"
+  exit 1
 fi
 
-log "INFO" "Duplexer watcher started successfully"
+# Basic sanity check for inbox
+if [[ ! -d "$INBOX" ]]; then
+  log "[watch] INFO: creating inbox directory: $INBOX"
+  mkdir -p "$INBOX"
+fi
 
-# Set up periodic health checks
-last_health_check=0
+log "[watch] duplexer watcher started, monitoring: $INBOX"
+log "[watch] LOGFILE=$LOGFILE  HEARTBEAT_INTERVAL=${HEARTBEAT_INTERVAL}s  INOTIFY_TIMEOUT=${INOTIFY_TIMEOUT}s"
 
+last_heartbeat=0
+
+# --- Main loop ---
+# Wait for new/finished files; also wake up periodically to emit heartbeat and retry merges
 while true; do
-    # Periodic health check
-    current_time=$(date +%s)
-    if (( current_time - last_health_check >= HEALTH_CHECK_INTERVAL )); then
-        health_check || log "WARN" "Health check failed"
-        last_health_check=$current_time
-    fi
-    
-    # Wait for file system events
-    if inotifywait -e close_write,move,create "$INBOX" >/dev/null 2>&1; then
-        log "INFO" "File system event detected"
-        
-        # Small delay to ensure file write is complete
-        sleep "$PROCESS_DELAY"
-        
-        # Trigger processing
-        log "INFO" "Triggering merge process"
-        if /app/merge_once.sh; then
-            log "INFO" "Merge process completed successfully"
-        else
-            log "ERROR" "Merge process failed with exit code $?"
-        fi
-    else
-        log "DEBUG" "inotifywait exited, restarting monitor"
-        sleep 1
-    fi
+  # Block for filesystem events, but time out so we can heartbeat
+  # close_write: file fully written
+  # move,create: new files arriving
+  inotifywait -t "$INOTIFY_TIMEOUT" -e close_write,move,create "$INBOX" >/dev/null 2>&1 || true
+
+  # Try a merge pass; never crash the watcher if merge script fails
+  if /app/merge_once.sh; then
+    :
+  else
+    rc=$?
+    log "[watch] WARN: merge_once.sh exited with code $rc (continuing)"
+  fi
+
+  # Heartbeat every HEARTBEAT_INTERVAL seconds
+  now=$(date +%s)
+  if (( now - last_heartbeat >= HEARTBEAT_INTERVAL )); then
+    log "[watch] still alive"
+    last_heartbeat=$now
+  fi
 done
