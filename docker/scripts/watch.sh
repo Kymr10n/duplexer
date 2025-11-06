@@ -13,6 +13,7 @@ LOGFILE="${LOGFILE:-/logs/duplexer.log}"
 FILE_PATTERN="${FILE_PATTERN:-*.pdf}"
 PROCESS_DELAY="${PROCESS_DELAY:-2}"
 HEALTH_CHECK_INTERVAL="${HEALTH_CHECK_INTERVAL:-60}"
+HEARTBEAT_INTERVAL="${HEARTBEAT_INTERVAL:-10800}"  # 3 hours = 10800 seconds
 
 # Logging function
 log() {
@@ -53,6 +54,7 @@ log "INFO" "  Inbox: $INBOX"
 log "INFO" "  Pattern: $FILE_PATTERN"
 log "INFO" "  Process delay: ${PROCESS_DELAY}s"
 log "INFO" "  Health check interval: ${HEALTH_CHECK_INTERVAL}s"
+log "INFO" "  Heartbeat interval: ${HEARTBEAT_INTERVAL}s ($(( HEARTBEAT_INTERVAL / 3600 )) hours)"
 
 # Initial health check
 if ! health_check; then
@@ -94,19 +96,27 @@ cleanup() {
 
 trap cleanup SIGTERM SIGINT
 
-# Set up periodic health checks
+# Set up periodic health checks and heartbeat
 last_health_check=0
+last_heartbeat=0
 
 while true; do
-    # Periodic health check
     current_time=$(date +%s)
+    
+    # Periodic heartbeat - log "still alive" message every 3 hours
+    if (( current_time - last_heartbeat >= HEARTBEAT_INTERVAL )); then
+        log "INFO" "Heartbeat: Duplexer is alive and monitoring for PDF files"
+        last_heartbeat=$current_time
+    fi
+    
+    # Periodic health check
     if (( current_time - last_health_check >= HEALTH_CHECK_INTERVAL )); then
         health_check || log "WARN" "Health check failed"
         last_health_check=$current_time
     fi
 
-    # Wait for file system events
-    if inotifywait -e close_write,move,create "$INBOX" >/dev/null 2>&1; then
+    # Wait for file system events with timeout
+    if timeout 30 inotifywait -e close_write,move,create "$INBOX" >/dev/null 2>&1; then
         log "INFO" "File system event detected"
 
         # Small delay to ensure file write is complete
@@ -120,7 +130,8 @@ while true; do
             log "ERROR" "Merge process failed with exit code $?"
         fi
     else
-        log "DEBUG" "inotifywait exited, restarting monitor"
-        sleep 1
+        # inotifywait timed out or exited, continue loop
+        # This allows periodic heartbeat and health checks even when no files arrive
+        continue
     fi
 done
