@@ -124,7 +124,16 @@ while true; do
 
         # Trigger processing
         log "INFO" "Triggering merge process"
-        if /app/merge_once.sh; then
+        if env \
+            APPROVAL_EMAIL="${APPROVAL_EMAIL:-}" \
+            SMTP_HOST="${SMTP_HOST:-}" \
+            SMTP_PORT="${SMTP_PORT:-}" \
+            SMTP_USER="${SMTP_USER:-}" \
+            SMTP_PASSWORD="${SMTP_PASSWORD:-}" \
+            SMTP_FROM="${SMTP_FROM:-}" \
+            WEBHOOK_EXTERNAL_URL="${WEBHOOK_EXTERNAL_URL:-}" \
+            WEBHOOK_PORT="${WEBHOOK_PORT:-8083}" \
+            /app/merge_once.sh; then
             log "INFO" "Merge process completed successfully"
         else
             log "ERROR" "Merge process failed with exit code $?"

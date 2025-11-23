@@ -202,9 +202,10 @@ else
 
     echo ""
     echo "Required Directories:"
-    check_remote_path "${INBOX_PATH:-/volume1/services/duplexer/inbox}" "Inbox directory"
+    check_remote_path "${INBOX_PATH:-/volume1/services/duplexer/inbox}" "Inbox directory (user accessible)"
     check_remote_path "${CONSUME_PATH:-/volume1/services/paperless/consume}" "Paperless consume directory"
-    check_remote_path "${LOGS_PATH:-/volume1/services/duplexer/logs}" "Logs directory"
+    check_remote_path "${LOGS_PATH:-/volume2/docker/duplexer/logs}" "Logs directory (docker managed)"
+    check_remote_path "${NAS_DUPLEXER_PATH:-/volume2/docker/duplexer}/config" "Config directory (docker managed)"
 
     echo ""
     echo "Docker Container Tools (if container is running):"

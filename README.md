@@ -56,7 +56,7 @@ Edit `.env` file with your NAS details:
 # Your NAS configuration
 NAS_HOST=your_username@your_nas_hostname
 DOCKER_CONTEXT=your_docker_context_name
-NAS_DUPLEXER_PATH=/volume1/services/duplexer
+NAS_DUPLEXER_PATH=/volume2/docker/duplexer
 NAS_PAPERLESS_PATH=/volume1/services/paperless
 ```
 
@@ -73,21 +73,37 @@ make status
 
 ## 📖 Usage
 
-1. **Scan odd pages** - save as any PDF name (e.g., `scan1.pdf`)
-2. **Scan even pages** - save as any PDF name (e.g., `scan2.pdf`)
+1. **Scan odd pages first** - save as any PDF name (e.g., `document.pdf`)
+2. **Scan even pages second** - save as any PDF name (e.g., `document0001.pdf`)
 3. **Drop both files** into the monitored inbox folder
 4. **Wait for processing** - merged file appears in Paperless consume folder
 5. **Check logs** if needed: `make logs`
 
+### File Order Detection
+
+Duplexer automatically detects which file contains odd vs even pages:
+
+**Priority 1: Filename patterns**
+- Files containing "odd" and "even" in their names
+- Example: `document_odd.pdf` and `document_even.pdf`
+
+**Priority 2: Creation time (handles scanner defaults)**
+- First scanned file = odd pages (1,3,5,7...)
+- Second scanned file = even pages (2,4,6,8...)  
+- Works with patterns like `scan.pdf` + `scan0001.pdf`
+
 ### File Processing Flow
 
 ```
-Inbox: scan1.pdf (odd pages: 1,3,5,7)
-       scan2.pdf (even pages: 8,6,4,2)
+Inbox: scan.pdf (first scanned - odd pages: 1,3,5,7)
+       scan0001.pdf (second scanned - even pages: 8,6,4,2)
               ↓
        [Duplexer Processing]
+       • Detects scan.pdf was created first (odd pages)
+       • Reverses scan0001.pdf page order (2,4,6,8)
+       • Merges in alternating pattern
               ↓
-Output: duplex_20241028_143022.pdf (pages: 1,2,3,4,5,6,7,8)
+Output: duplex_20241128_143022.pdf (pages: 1,2,3,4,5,6,7,8)
 ```
 
 ## 🔧 Configuration
@@ -100,11 +116,11 @@ Duplexer uses a `.env` file for configuration (not synced with git):
 |----------|---------|-------------|
 | `NAS_HOST` | `username@your-nas-hostname` | SSH connection to NAS |
 | `DOCKER_CONTEXT` | `your-nas-context` | Docker context name |
-| `NAS_DUPLEXER_PATH` | `/volume1/services/duplexer` | Base path on NAS |
+| `NAS_DUPLEXER_PATH` | `/volume2/docker/duplexer` | Docker managed path on NAS |
 | `NAS_PAPERLESS_PATH` | `/volume1/services/paperless` | Paperless path on NAS |
-| `INBOX_PATH` | `${NAS_DUPLEXER_PATH}/inbox` | Directory to monitor for PDFs |
+| `INBOX_PATH` | `/volume1/services/duplexer/inbox` | Directory to monitor for PDFs (user accessible) |
 | `CONSUME_PATH` | `${NAS_PAPERLESS_PATH}/consume` | Output directory for merged PDFs |
-| `LOGS_PATH` | `${NAS_DUPLEXER_PATH}/logs` | Log file location |
+| `LOGS_PATH` | `${NAS_DUPLEXER_PATH}/logs` | Log file location (secure location) |
 
 ### Container Environment
 

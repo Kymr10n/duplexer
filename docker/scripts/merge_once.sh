@@ -60,6 +60,30 @@ validate_pdf() {
     log "INFO" "PDF validation passed: $file"
     return 0
 }
+
+# File stability check - ensure file is not still being written
+check_file_stable() {
+    local file="$1"
+    local size1 size2
+    
+    size1=$(stat -c %s "$file" 2>/dev/null || echo "0")
+    sleep 2
+    size2=$(stat -c %s "$file" 2>/dev/null || echo "0")
+    
+    if [[ "$size1" != "$size2" ]]; then
+        log "WARN" "File still being written, waiting: $file ($size1 -> $size2 bytes)"
+        return 1
+    fi
+    
+    if [[ "$size2" -lt 1024 ]]; then
+        log "WARN" "File too small, may be incomplete: $file ($size2 bytes)"
+        return 1
+    fi
+    
+    log "DEBUG" "File appears stable: $file ($size2 bytes)"
+    return 0
+}
+
 # Get list of PDF files and validate count
 mapfile -t FILES < <(find "$INBOX" -maxdepth 1 -name "*.pdf" -type f | sort || true)
 COUNT=${#FILES[@]}
@@ -82,30 +106,60 @@ if [ "$COUNT" -gt 2 ]; then
 fi
 
 # Select files to process
-# Sort files by name to ensure consistent ordering
-FILES=($(printf '%s\n' "${FILES[@]}" | sort))
+# Sort files by creation/modification time (oldest first) to handle scan.pdf + scan0001.pdf pattern
+mapfile -t FILES_BY_TIME < <(stat -c '%Y %n' "${FILES[@]}" | sort -n | cut -d' ' -f2-)
 
 # Detect which file contains odd vs even pages based on filename patterns
-if [[ "${FILES[0]}" =~ odd && "${FILES[1]}" =~ even ]]; then
-    ODD="${FILES[0]}"
-    EVEN="${FILES[1]}"
-    log "INFO" "Detected by filename pattern - odd: ${FILES[0]}, even: ${FILES[1]}"
-elif [[ "${FILES[0]}" =~ even && "${FILES[1]}" =~ odd ]]; then
-    ODD="${FILES[1]}"
-    EVEN="${FILES[0]}"
-    log "INFO" "Detected by filename pattern - odd: ${FILES[1]}, even: ${FILES[0]}"
+if [[ "${FILES_BY_TIME[0]}" =~ odd && "${FILES_BY_TIME[1]}" =~ even ]]; then
+    ODD="${FILES_BY_TIME[0]}"
+    EVEN="${FILES_BY_TIME[1]}"
+    log "INFO" "Detected by filename pattern - odd: ${FILES_BY_TIME[0]}, even: ${FILES_BY_TIME[1]}"
+elif [[ "${FILES_BY_TIME[0]}" =~ even && "${FILES_BY_TIME[1]}" =~ odd ]]; then
+    ODD="${FILES_BY_TIME[1]}"
+    EVEN="${FILES_BY_TIME[0]}"
+    log "INFO" "Detected by filename pattern - odd: ${FILES_BY_TIME[1]}, even: ${FILES_BY_TIME[0]}"
 else
-    # If no pattern match, use alphabetical order but log a warning
-    ODD="${FILES[0]}"
-    EVEN="${FILES[1]}"
-    log "WARN" "No filename pattern detected, using alphabetical order"
-    log "WARN" "Assuming: odd=${FILES[0]}, even=${FILES[1]}"
-    log "WARN" "For best results, use filenames containing 'odd' and 'even'"
+    # If no pattern match, use creation time order (first file = odd pages, second file = even pages)
+    ODD="${FILES_BY_TIME[0]}"
+    EVEN="${FILES_BY_TIME[1]}"
+    log "INFO" "No filename pattern detected, using creation time order"
+    log "INFO" "First scanned file (odd pages): ${FILES_BY_TIME[0]}"
+    log "INFO" "Second scanned file (even pages): ${FILES_BY_TIME[1]}"
+    log "INFO" "Tip: For explicit control, use filenames containing 'odd' and 'even'"
 fi
 
+log "INFO" "File detection details:"
+for i in "${!FILES_BY_TIME[@]}"; do
+    file_time=$(stat -c '%Y' "${FILES_BY_TIME[$i]}")
+    file_time_readable=$(date -d "@$file_time" '+%Y-%m-%d %H:%M:%S')
+    log "INFO" "  File $((i+1)): $(basename "${FILES_BY_TIME[$i]}") (created: $file_time_readable)"
+done
+
 log "INFO" "Selected files for processing:"
-log "INFO" "  Odd pages file:   $ODD"
-log "INFO" "  Even pages file:  $EVEN"
+log "INFO" "  Odd pages file:   $(basename "$ODD")"
+log "INFO" "  Even pages file:  $(basename "$EVEN")"
+
+# Check file stability (ensure files are completely transferred)
+log "INFO" "Checking file stability before processing..."
+if ! check_file_stable "$ODD"; then
+    log "INFO" "Odd pages file not stable, waiting and retrying..."
+    sleep 5
+    if ! check_file_stable "$ODD"; then
+        log "ERROR" "Odd pages file appears incomplete after waiting"
+        mv "$ODD" "$BACKUP_DIR/" || true
+        exit 1
+    fi
+fi
+
+if ! check_file_stable "$EVEN"; then
+    log "INFO" "Even pages file not stable, waiting and retrying..."
+    sleep 5
+    if ! check_file_stable "$EVEN"; then
+        log "ERROR" "Even pages file appears incomplete after waiting"
+        mv "$EVEN" "$BACKUP_DIR/" || true
+        exit 1
+    fi
+fi
 
 # Validate both PDF files
 if ! validate_pdf "$ODD"; then
@@ -175,6 +229,16 @@ if ! validate_pdf "$MERGED"; then
     rm -f "$TMP_EVEN_REV" "$MERGED"
     exit 1
 fi
+
+# Ensure email environment variables are available
+export APPROVAL_EMAIL="${APPROVAL_EMAIL:-}"
+export SMTP_HOST="${SMTP_HOST:-}"
+export SMTP_PORT="${SMTP_PORT:-}"
+export SMTP_USER="${SMTP_USER:-}"
+export SMTP_PASSWORD="${SMTP_PASSWORD:-}"
+export SMTP_FROM="${SMTP_FROM:-}"
+export WEBHOOK_EXTERNAL_URL="${WEBHOOK_EXTERNAL_URL:-}"
+export WEBHOOK_PORT="${WEBHOOK_PORT:-8083}"
 
 # Source email functions
 if [[ -f "/app/send_email.sh" ]]; then

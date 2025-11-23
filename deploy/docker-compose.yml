@@ -3,6 +3,7 @@ services:
     container_name: ${CONTAINER_NAME:-duplexer}
     image: ${IMAGE_NAME:-duplexer:latest}
     restart: unless-stopped
+    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
     environment:
       - INBOX=/duplex-inbox
       - OUTBOX=/paperless-consume
@@ -21,9 +22,14 @@ services:
     ports:
       - "8083:8083"  # Internal webhook port for nginx proxy
     volumes:
+      # User accessible directories (file share)
       - ${INBOX_PATH:-/volume1/services/duplexer/inbox}:/duplex-inbox:rw
       - ${CONSUME_PATH:-/volume1/services/paperless/consume}:/paperless-consume:rw
-      - ${LOGS_PATH:-/volume1/services/duplexer/logs}:/logs:rw
+      # Docker managed directories (secure location)
+      - ${LOGS_PATH:-/volume2/docker/duplexer/logs}:/logs:rw
+      - ${NAS_DUPLEXER_PATH:-/volume2/docker/duplexer}/config:/app/config:rw
+      - ${OUTBOX_PATH:-/volume2/docker/duplexer/outbox}:/outbox:rw
+      - ${TEMP_PATH:-/volume2/docker/duplexer/temp}:/tmp/duplexer:rw
     healthcheck:
       test: ["CMD", "/app/health_check.sh"]
       interval: 30s

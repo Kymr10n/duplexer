@@ -201,12 +201,19 @@ Test Results:
 - PDF Merging: ✅ PASSED
 - File Cleanup: ✅ PASSED
 - Backup Creation: ✅ PASSED
+- Scanner Naming Pattern: ✅ PASSED
 - Health Check: ⚠️  PARTIAL (permission issues)
 
 Summary:
 The Duplexer service is functioning correctly. Core PDF merging
-functionality works as expected. Minor permission issues with
-logging do not affect primary functionality.
+functionality works as expected, including intelligent detection
+of scanner naming patterns (scan.pdf + scan0001.pdf). Minor
+permission issues with logging do not affect primary functionality.
+
+File Order Detection:
+- Filename patterns (odd/even): Highest priority
+- Creation time ordering: Handles scanner defaults automatically
+- First scanned file = odd pages, second = even pages
 
 Expected Page Order in Merged PDF:
 Original odd pages file: 1, 3, 5, 7
@@ -217,6 +224,58 @@ Final merged result: 1, 2, 3, 4, 5, 6, 7, 8
 EOF
 
     log_success "Test report generated: $report_file"
+}
+
+test_scanner_naming_pattern() {
+    log_info "Testing scanner naming pattern (scan.pdf + scan0001.pdf)..."
+    
+    # Clean up any existing files first
+    cleanup_test_files
+    
+    # Create copies of test files with scanner-style names
+    local scanner_odd="/tmp/scan_test.pdf"
+    local scanner_even="/tmp/scan_test0001.pdf"
+    
+    # Copy our test files locally with new names
+    cp "$TEST_ODD_PDF" "$scanner_odd"
+    cp "$TEST_EVEN_PDF" "$scanner_even"
+    
+    # Upload first file (scan.pdf - should be detected as odd pages)
+    scp "$scanner_odd" "$NAS_HOST:${INBOX_PATH}/scan.pdf"
+    
+    # Wait a moment to ensure different timestamps
+    sleep 2
+    
+    # Upload second file (scan0001.pdf - should be detected as even pages)  
+    scp "$scanner_even" "$NAS_HOST:${INBOX_PATH}/scan0001.pdf"
+    
+    # Wait for processing
+    log_info "Waiting for scanner pattern processing..."
+    sleep 8
+    
+    # Check logs for proper detection
+    local logs=$(docker --context "$DOCKER_CONTEXT" logs "$CONTAINER_NAME" --since=15s)
+    
+    if echo "$logs" | grep -q "First scanned file (odd pages): .*scan\.pdf"; then
+        log_success "Scanner naming pattern correctly detected scan.pdf as odd pages"
+    else
+        log_error "Scanner naming pattern detection failed"
+        echo "Recent logs:"
+        echo "$logs"
+        return 1
+    fi
+    
+    if echo "$logs" | grep -q "Second scanned file (even pages): .*scan0001\.pdf"; then
+        log_success "Scanner naming pattern correctly detected scan0001.pdf as even pages"
+    else
+        log_error "Scanner naming pattern detection failed"
+        return 1
+    fi
+    
+    # Clean up test files
+    rm -f "$scanner_odd" "$scanner_even"
+    
+    log_success "Scanner naming pattern test completed successfully"
 }
 
 # Main test execution
@@ -230,6 +289,7 @@ main() {
     test_single_file_detection
     test_pdf_merging
     verify_results
+    test_scanner_naming_pattern
     test_health_check
     generate_test_report
 

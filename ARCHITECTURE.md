@@ -60,13 +60,19 @@ Duplexer follows a clean containerized architecture where tools and dependencies
 
 **Directory Structure:**
 ```
+# User accessible directories (file share)
 /volume1/services/duplexer/
-├── inbox/          # PDF input directory
-├── logs/           # Application logs
-└── outbox/         # Temporary output (optional)
+└── inbox/          # PDF input directory (user uploads here)
 
 /volume1/services/paperless/
 └── consume/        # Final output directory
+
+# Docker managed directories (secure location)
+/volume2/docker/duplexer/
+├── logs/           # Application logs
+├── config/         # Configuration files
+├── outbox/         # Temporary output
+└── temp/           # Temporary processing files
 ```
 
 ### Docker Container
@@ -99,8 +105,12 @@ docker context create your-nas-context --docker "host=ssh://user@nas-hostname"
 # If not, follow NAS-specific Docker installation guides
 
 # Create directory structure
-mkdir -p /volume1/services/duplexer/{inbox,logs,outbox}
+# User accessible directories
+mkdir -p /volume1/services/duplexer/inbox
 mkdir -p /volume1/services/paperless/consume
+
+# Docker managed directories (secure location)
+mkdir -p /volume2/docker/duplexer/{logs,config,outbox,temp}
 ```
 
 ### Container (Automatic via Dockerfile)
